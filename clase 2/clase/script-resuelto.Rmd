@@ -1,0 +1,247 @@
+---
+title: "Clase Nueva UIE"
+author: "Guadalupe González"
+date: "29/5/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Paquetes / Librerías
+
+Uno de los principales fuerte de R es que al ser de código abierto, no solamente su [código fuente](https://github.com/wch/r-source) está publicado, sino que la mayor parte de la riqueza en cuanto a su uso, proviene de librerías y/o paquetes. Son conjuntos de funciones, datos y documentación de los mismos creados por usuarios del lenguaje.
+
+CRAN (Comprehensive R Archive Network) compila y valida todos los paquetes que están en R. Podemos encontrar el listado completo [aquí](https://cran.r-project.org/)
+
+Es necesario instalar sólo una vez los paquetes en R (aunque si cambian de directorio por ejemplo al instalar una nueva versión, posiblemente haya que instalarlos nuevamente), con la función `install.packages()`. Si la volvemos a ejecutar con el paquete ya instalado, la función va a actualizar el mismo. Para usar las funciones/datos de un paquete, debemos cargarlo en nuestro espacio de trabajo en cada sesión de R.
+
+# Tidyverse
+
+[Tidyverse](https://www.tidyverse.org/) es una colección de paquetes de R para análisis de datos / ciencia de datos, de los más populares hoy en día en el lenguaje. Vamos a ver varios a lo largo del curso, pueden encontrar el listado completo [acá](https://www.tidyverse.org/packages/). Hoy nos enfocaremos en dplyr, que contiene diferentes funciones para manipulación de datos.
+
+# Data Wrangling
+
+Vamos a avanzar en aprender cómo manipular datos con funciones del paquete ```tidyverse```.
+
+1. Para esto, primero instalamos y cargamos la librería.
+
+```{r}
+#para instalarlo, descomentar esta línea y ejecutarla
+#install.packages("tidyverse")
+library(tidyverse)
+```
+
+2. Cargamos el dataset de "base_cargos_2022.csv"
+```{r}
+base_cargos_2022 <- read_csv("base_cargos_2022_def.csv", locale = locale())
+```
+
+3. Realizamos una rápida visita a nuestro dataset con la función `head()`:
+```{r}
+head(base_cargos_2022)
+```
+
+
+
+
+5.a. Usemos la función `unique()` para ver la cantidad de valores distintos en la columna "Provincia".
+5.b. Filtremos todos aquellos casos de la "CABA" en la columna "Provincia" y reasignemoslo al dataset de "base_cargos_2022":
+
+```{r}
+unique(base_cargos_2022$Provincia)
+base_cargos_2022 <- base_cargos_2022[base_cargos_2022$Provincia == "Ciudad de Buenos Aires", ]
+```
+
+## DPLYR
+
+Es uno de los componentes de todos los paquetes que integran tidyverse (no hace falta llamar a este paquete específicamente, ya lo hicimos cuando trajimos todo ```tidyverse```).
+
+### `select()`
+
+Esta función nos permite seleccionar ciertas columnas del dataset con el que estamos trabajando. Es importante para bases con una alta dimensionalidad (ya que puede haber muchas columnas que no nos interesen o que las descartamos para que las operaciones sean más rápidas)
+
+7. Vemos primero las columnas del dataframe con la función `names()`:
+
+```{r}
+names(base_cargos_2022)
+```
+
+## Seleccionando el sector, nivel, tipo cubierto y value, calcular la cantidad de vacantes que cargos que faltan cubrir para las escuelas en el ambito estatal y  para el nivel primario y secundario por nivel eductativo.
+
+
+8.a. Seleccionar el sector, nivel, tipo cubierto y value:
+
+```{r}
+names(base_cargos_2022)
+base_cargos_2022_select <- select(base_cargos_2022, Sector, Nivel, Categoria, Dummy_Cubierto, value)
+```
+
+8.b. Filtrar por ámbito estatal y nivel primario y secundario
+
+```{r}
+base_cargos_2022_filter <- filter(base_cargos_2022_select, Sector == "Estatal",  Nivel %in% c("Nivel Primario", "Nivel Secundario"), Dummy_Cubierto != "Cubiertos")
+```
+8.c. Agrupemoslo por nivel educativo:
+
+```{r}
+base_cargos_2022_group <- group_by(base_cargos_2022_filter, Nivel) 
+```
+
+8.d. Calcular la suma de cargos sin cubrir:
+```{r}
+base_cargos_2022_sum <- summarise(base_cargos_2022_group, suma_cargos_sin_cubrir = sum(value, na.rm = T))
+base_cargos_2022_sum
+```
+
+
+## Operador "pipe": `%>%`
+
+El operador _pipe_ relaciona entidades, toma lo referenciado a la izquierda del operador y lo transforma con los comandos de la derecha. El principal beneficio de este operador es hacer el código mucho más simple y fácil de interpretar. También nos ahorra de crear muchos objetos que no vamos a volver a utilizar. Todas las funciones que vimos anteriormente se suelen utilizar encadenadas con pipes, el cual se expresa con el operador ```%>%```.
+ 
+9. Realizar el proceso anterior pero con el `%>%`:
+```{r}
+base_cargos_2022 %>%
+  select(Sector, Nivel, Categoria, Dummy_Cubierto, value) %>%
+  filter(Sector == "Estatal",  Nivel %in% c("Nivel Primario", "Nivel Secundario"),  Dummy_Cubierto != "Cubiertos") %>%
+  group_by(Nivel) %>%
+  summarise(suma_cargos_sin_cubrir = sum(value, na.rm = T))
+```
+
+## Uso de select:
+10.a. Selecciona todo el dataframe menos la columna 'Provincia':
+```{r}
+base_cargos_2022 %>% select(-Provincia)
+```
+
+10.b. Seleccioná todas las columnas menos la columna 'value':
+```{r}
+base_cargos_2022 %>%
+  select(ID:value)
+```
+
+
+
+## Uso de filter:
+
+11.a. Filtrar el dataframe para obtener solo las filas donde el nivel educativo es 'Nivel Primario' **o** el sector es 'Privado'.
+```{r}
+base_cargos_2022 %>%
+  filter(Nivel == "Nivel Primario" | Sector == "Privado")
+```
+
+11.b. Filtrar el dataframe para incluir solo las filas donde la 'Categoria' del cargo está en una lista predefinida, por ejemplo, 'Direccion', 'Apoyo', y 'Frente a Alumnos'.
+
+```{r}
+tipos_deseados <- c("Direccion", "Apoyo", "Frente a Alumnos")
+base_cargos_2022 %>%  filter(Categoria %in% tipos_deseados)
+```
+
+11.c. Filtrar aquellos con 'value' es "NA". Reasignarlo posteriormente a nuestra variable "base_cargos_2022":
+```{r}
+base_cargos_2022 <- base_cargos_2022 %>%
+  filter(!is.na(value))
+```
+
+
+## Uso de arrange:
+
+12. Ordenar el dataframe por la columna Nivel en orden alfabético ascendente y, dentro de cada nivel, por la columna value en orden descendente para identificar rápidamente las escuelas con más vacantes sin cubrir.
+```{r}
+base_cargos_2022 %>%
+  arrange(Nivel, desc(value))
+```
+## ¿Cuántos cargos no cubiertos existen por tipo de cargo y nivel educativo para cargos de apoyo en escuelas estatales urbanas de nivel inicial?
+
+### Para esto es importante ver joins!
+
+13.Importá el archivo "base_cargos_bis_2022.csv":
+```{r}
+base_cargos_bis_2022_def <- read_csv("base_cargos_bis_2022_def.csv", 
+    locale = locale(encoding = "ISO-8859-1"))
+```
+
+14. Realizá un join entre los dataset de: "base_cargos_2022" y "base_cargos_bis_2022_def". Tené en cuenta que pueden tener más de una variable en común:
+
+```{r}
+data_join<-  base_cargos_bis_2022_def %>%
+  inner_join(base_cargos_2022, by = c("ID", "Provincia", "Sector", "Ambito", "Nivel", "Categoria", "Dummy_Cubierto"))
+```
+
+15. Calculá ¿Cuántos cargos no cubiertos existen por tipo de cargo y nivel educativo para cargos de apoyo en escuelas estatales urbanas de nivel inicial? (sería la suma de los values sin cubrir)
+```{r}
+data_join %>%
+  filter(Sector == "Estatal",
+         Ambito == "Urbano",
+         Nivel == "Nivel Inicial",
+         Categoria == "Apoyo",
+         Dummy_Cubierto == "Sin Cubrir"
+    ) %>%
+  group_by(Cargo) %>%
+  summarise(Count = sum(value), .groups = "drop")
+```
+
+
+## Rbind
+
+16. Uní las bases de: "base_cargos_bis_2022_def.csv" con "base_cargos_bis_2022_rio_negro.csv" con la función `rbind()`:
+```{r}
+base_cargos_bis_2022_rio_negro <- read.csv("base_cargos_bis_2022_rio_negro.csv")
+
+
+data_rbind<- rbind(base_cargos_bis_2022_rio_negro, base_cargos_bis_2022_def)
+data_rbind
+```
+
+15. Ejemplo de `cbind()`. Ejemplo extraido de http://www.datasciencemadesimple.com/cbind-in-r/, recomendamos webs como estas (por ejemplo r-bloggers, rstatisticsblog, o la documentación de las diferetes librerías) para ver ejemplos prácticos.
+
+```{r}
+#Creamos dos dataframes usando vectores creados con la función c()
+
+df1 = data.frame(name = c("Rahul","joe","Adam","Brendon"), married_year = c(2016,2015,2016,2008))
+
+df2 = data.frame(Birth_place = c("Delhi","Seattle","London","Moscow"), Birth_year = c(1988,1990,1989,1984))
+
+cbinded_df<-cbind(df1,df2)
+cbinded_df
+```
+
+
+
+## Para practicar:
+16. Crear una nueva columna que calcule el porcentaje de vacantes no cubiertas por establecimiento. Para esto hay que:
+a. Filtrar todos los casos "NA" de la columna value
+b. calcular la totalidad de los cubiertos por establecimiento 
+c. calcular la totalidad de no cubiertos por establecimiento
+d. calcular el porcentaje que es el resultado de "b / sum(b+c)"
+e. Realizar dentro de la función mutate() el case_when() donde si:
+  - El porcentaje es < 0.25 nuestra nueva variable es: "Baja" porque tiene pocos casos por cubrir
+  - El porcentaje está entre 0.26 y 0.50 nuestra nueva variable es "Media" 
+  - El porcentaje es mayor a 0.51 nuestra nueva variable es "Alta".
+  - Si el porcentaje es igual a "Nan" escribir: "Información No disponible"
+```{r}
+mutate_df <- base_cargos_2022 %>%
+      filter(!is.na(value)) %>%
+      pivot_wider(names_from = Dummy_Cubierto, values_from = value) %>%
+      group_by(ID) %>%
+      summarise(sum_cubiertos = sum(Cubiertos,na.rm = T), 
+                sum_no_cubiertos = sum(`Sin Cubrir`,na.rm = T),
+                porcentaje = sum_no_cubiertos / (sum_cubiertos + sum_no_cubiertos)) %>%
+      mutate(porcentaje_categorias = case_when(
+        porcentaje < 0.25 ~ "Baja",
+        porcentaje > 0.26 & porcentaje < 0.50 ~ "Media",
+        porcentaje > 0.51  ~ "Alta",
+        T~ "Información no disponible"
+      ))
+  
+mutate_df
+```
+
+17. ¿Cuántos casos de escuelas por 'porcentaje_categorias' hay? Hacé un group by por 'porcentaje_categorias' y calculá la cantidad de cada uno con la función `n()`:
+```{r}
+mutate_df %>%
+  group_by(porcentaje_categorias) %>%
+  summarise(cantidad = n())
+```
+
